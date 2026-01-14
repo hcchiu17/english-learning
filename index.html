@@ -1,0 +1,656 @@
+<!-- Chosen Palette: Desert & Crystal (Warm Neutrals: #f5f5f4, #292524; Accents: #0ea5e9, #eab308) -->
+
+<!-- Application Structure Plan:
+The SPA is designed as a "Linguistic Operation Center" (Dashboard).
+1. Navigation: A responsive top navigation bar allows quick switching between four key modules: "Mission Brief (Overview)", "The Lab (Vocabulary)", "Subject Analysis (Characters)", and "Wiretap Records (Quotes)".
+2. Overview: Sets the stage with the core definition of "Break Bad" and provides a high-level visual breakdown of the learning material using a Donut Chart.
+3. Vocabulary Lab: The core interactive section. Users can filter terms by domain (Street, Core, Chemistry, Law) using a tabbed interface. Cards feature a "click-to-reveal" interaction (flashcard style) to facilitate active recall memory testing.
+4. Character Analysis: Focuses on the "Who speaks how?" aspect derived from the "Tips" section. An interactive Radar Chart compares Walt, Jesse, and Hank's linguistic traits.
+5. Quote Gallery: A visual grid of quotes. Hovering or clicking focuses on the context, reinforcing the dramatic weight of the lines.
+This structure transforms the linear notes into an active learning tool, allowing users to drill down into specific areas or view the big picture, suitable for the user and his adult sons. -->
+
+<!-- Visualization & Content Choices:
+1. Content Distribution (Donut Chart):
+- Goal: Inform/Organize. Visualizes the balance of topics (Slang vs. Professional vs. Core) to set learning expectations.
+- Interaction: Hover to see exact counts.
+- Method: Chart.js (Canvas).
+2. Linguistic Profile (Radar Chart):
+- Goal: Compare. Visualizes the distinct speaking styles (Slang vs. Technical vs. Formal) mentioned in the source text.
+- Interaction: Toggle datasets to compare specific characters.
+- Method: Chart.js (Canvas).
+3. Interactive Vocab Cards:
+- Goal: Memorize/Inform.
+- Interaction: Click to flip/reveal meaning and context. Uses JS state to filter by category.
+- Method: HTML/CSS/JS (DOM Manipulation).
+4. Quote Cards:
+- Goal: Inspire/Contextualize.
+- Interaction: Hover effects to emphasize the "Application" of the quote.
+- Method: Tailwind CSS + JS. -->
+
+<!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+<!DOCTYPE html>
+
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Breaking Bad English: Interactive Learning Lab</title>
+<script src="[https://cdn.tailwindcss.com](https://www.google.com/search?q=https://cdn.tailwindcss.com)"></script>
+<script src="[https://cdn.jsdelivr.net/npm/chart.js](https://www.google.com/search?q=https://cdn.jsdelivr.net/npm/chart.js)"></script>
+<style>
+@import url('[https://fonts.googleapis.com/css2?family=Oswald:wght@300;500;700&family=Roboto:wght@300;400;500;700&display=swap](https://www.google.com/search?q=https://fonts.googleapis.com/css2%3Ffamily%3DOswald:wght%40300%3B500%3B700%26family%3DRoboto:wght%40300%3B400%3B500%3B700%26display%3Dswap)');
+
+```
+    body {
+        font-family: 'Roboto', sans-serif;
+        background-color: #f5f5f4; /* Stone 100 - Desert Sand */
+        color: #1c1917; /* Stone 900 */
+    }
+
+    h1, h2, h3, .brand-font {
+        font-family: 'Oswald', sans-serif;
+    }
+
+    /* Chart Container Styling - Mandatory per requirements */
+    .chart-container {
+        position: relative;
+        width: 100%;
+        max-width: 600px; /* Tailwind max-w-xl approx */
+        margin-left: auto;
+        margin-right: auto;
+        height: 300px;
+        max-height: 400px;
+    }
+
+    @media (min-width: 768px) {
+        .chart-container {
+            height: 400px;
+        }
+    }
+
+    /* Card Flip Animation */
+    .vocab-card {
+        perspective: 1000px;
+        cursor: pointer;
+    }
+    
+    .vocab-inner {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        text-align: center;
+        transition: transform 0.6s;
+        transform-style: preserve-3d;
+    }
+
+    .vocab-card.flipped .vocab-inner {
+        transform: rotateY(180deg);
+    }
+
+    .vocab-front, .vocab-back {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+        border-radius: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    .vocab-front {
+        background-color: white;
+        border: 1px solid #e7e5e4;
+    }
+
+    .vocab-back {
+        background-color: #1c1917; /* Stone 900 */
+        color: white;
+        transform: rotateY(180deg);
+        border: 1px solid #1c1917;
+    }
+
+    /* Nav Active State */
+    .nav-btn.active {
+        background-color: #0ea5e9; /* Sky 500 */
+        color: white;
+        font-weight: bold;
+    }
+
+    /* Custom Scrollbar for dashboard feel */
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #e7e5e4;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #a8a29e;
+        border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #78716c;
+    }
+
+    .fade-in {
+        animation: fadeIn 0.5s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+
+```
+
+</head>
+<body class="flex flex-col min-h-screen">
+
+```
+<!-- Navbar -->
+<nav class="bg-stone-900 text-white shadow-lg sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+            <div class="flex items-center cursor-pointer" onclick="app.navigate('overview')">
+                <span class="text-3xl font-bold brand-font text-green-500 mr-1">Br</span>
+                <span class="text-3xl font-bold brand-font text-white">eaking</span>
+                <span class="text-3xl font-bold brand-font text-green-500 ml-3 mr-1">Ba</span>
+                <span class="text-3xl font-bold brand-font text-white">d</span>
+                <span class="hidden md:block ml-4 text-xs tracking-widest text-stone-400 uppercase">English Lab</span>
+            </div>
+            <div class="hidden md:block">
+                <div class="ml-10 flex items-baseline space-x-4">
+                    <button onclick="app.navigate('overview')" id="nav-overview" class="nav-btn active px-3 py-2 rounded-md text-sm font-medium transition-colors hover:bg-stone-700">任務簡報 Brief</button>
+                    <button onclick="app.navigate('vocab')" id="nav-vocab" class="nav-btn px-3 py-2 rounded-md text-sm font-medium transition-colors hover:bg-stone-700">單字庫 Vocab</button>
+                    <button onclick="app.navigate('analysis')" id="nav-analysis" class="nav-btn px-3 py-2 rounded-md text-sm font-medium transition-colors hover:bg-stone-700">角色分析 Analysis</button>
+                    <button onclick="app.navigate('quotes')" id="nav-quotes" class="nav-btn px-3 py-2 rounded-md text-sm font-medium transition-colors hover:bg-stone-700">監聽錄音 Quotes</button>
+                </div>
+            </div>
+            <!-- Mobile menu button -->
+            <div class="-mr-2 flex md:hidden">
+                <button onclick="document.getElementById('mobile-menu').classList.toggle('hidden')" class="bg-stone-800 inline-flex items-center justify-center p-2 rounded-md text-stone-400 hover:text-white hover:bg-stone-700 focus:outline-none">
+                    <span class="sr-only">Open main menu</span>
+                    <span class="text-2xl">☰</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- Mobile Menu -->
+    <div class="hidden md:hidden bg-stone-800" id="mobile-menu">
+        <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+            <button onclick="app.navigate('overview')" class="text-stone-300 hover:bg-stone-700 hover:text-white block px-3 py-2 rounded-md text-base font-medium w-full text-left">任務簡報 Brief</button>
+            <button onclick="app.navigate('vocab')" class="text-stone-300 hover:bg-stone-700 hover:text-white block px-3 py-2 rounded-md text-base font-medium w-full text-left">單字庫 Vocab</button>
+            <button onclick="app.navigate('analysis')" class="text-stone-300 hover:bg-stone-700 hover:text-white block px-3 py-2 rounded-md text-base font-medium w-full text-left">角色分析 Analysis</button>
+            <button onclick="app.navigate('quotes')" class="text-stone-300 hover:bg-stone-700 hover:text-white block px-3 py-2 rounded-md text-base font-medium w-full text-left">監聽錄音 Quotes</button>
+        </div>
+    </div>
+</nav>
+
+<!-- Main Content Area -->
+<main id="app-container" class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    
+    <!-- VIEW: OVERVIEW -->
+    <section id="view-overview" class="space-y-8 fade-in">
+        <div class="text-center mb-10">
+            <h2 class="text-4xl font-bold text-stone-800 mb-2 brand-font">Welcome to Albuquerque</h2>
+            <p class="text-stone-600 text-lg max-w-2xl mx-auto">
+                這部劇不僅劇情緊湊，更是學習美式口語、街頭俚語以及特定領域（犯罪、化學、法律）英文的寶庫。
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
+            <!-- Definition Card -->
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden border-t-4 border-green-600 flex flex-col justify-center p-8">
+                <h3 class="text-2xl font-bold text-stone-800 mb-6 flex items-center">
+                    <span class="text-4xl mr-3">🧪</span> 
+                    核心概念: Breaking Bad
+                </h3>
+                <div class="bg-stone-100 p-6 rounded-lg mb-6 border-l-4 border-stone-400">
+                    <p class="text-xl font-bold text-stone-900 mb-2 font-serif">To break bad (phr.)</p>
+                    <p class="text-stone-700 text-lg leading-relaxed">
+                        一個美國南方俚語，指一個人偏離正軌、開始變壞、甚至違法亂紀。
+                    </p>
+                </div>
+                <p class="text-stone-500 italic border-t pt-4">
+                    <span class="font-bold">Context:</span> 劇中指主角 Walter White 從一個奉公守法的老師，轉變為犯罪首腦的過程。
+                </p>
+            </div>
+
+            <!-- Learning Composition Chart -->
+            <div class="bg-white rounded-xl shadow-lg p-6 border-t-4 border-sky-500">
+                <div class="mb-4">
+                    <h3 class="text-xl font-bold text-stone-800">學習內容成分分析</h3>
+                    <p class="text-sm text-stone-500">本筆記涵蓋的英文單字類型分布</p>
+                </div>
+                <div class="chart-container">
+                    <canvas id="contentChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Intro Tip -->
+        <div class="bg-stone-800 text-stone-200 p-6 rounded-lg mt-8 text-center shadow-lg">
+            <p class="text-lg">
+                💡 <span class="font-bold text-yellow-500">學習建議：</span> 
+                這部劇有大量的「街頭俚語」(Slang) 和髒話。請注意，這些字多半不適合在正式場合使用。
+            </p>
+        </div>
+    </section>
+
+    <!-- VIEW: VOCAB LAB -->
+    <section id="view-vocab" class="hidden space-y-6 fade-in">
+        <div class="text-center mb-8">
+            <h2 class="text-3xl font-bold text-stone-800 brand-font">The Lab: Vocabulary</h2>
+            <p class="text-stone-500 max-w-2xl mx-auto">
+                這裡收集了劇中的核心單字。點擊卡片可翻面查看中文解釋與劇中情境。
+                請善用上方的篩選器來專注於特定領域。
+            </p>
+        </div>
+
+        <!-- Filter Buttons -->
+        <div class="flex flex-wrap justify-center gap-3 mb-8">
+            <button onclick="app.filterVocab('all')" class="vocab-filter-btn active px-5 py-2 rounded-full border border-stone-300 bg-white text-stone-600 hover:bg-stone-100 transition-all font-bold shadow-sm" data-filter="all">全部 All</button>
+            <button onclick="app.filterVocab('core')" class="vocab-filter-btn px-5 py-2 rounded-full border border-stone-300 bg-white text-stone-600 hover:bg-stone-100 transition-all shadow-sm" data-filter="core">核心劇情 Core</button>
+            <button onclick="app.filterVocab('slang')" class="vocab-filter-btn px-5 py-2 rounded-full border border-yellow-300 bg-white text-yellow-700 hover:bg-yellow-50 transition-all shadow-sm" data-filter="slang">街頭俚語 Slang</button>
+            <button onclick="app.filterVocab('pro')" class="vocab-filter-btn px-5 py-2 rounded-full border border-sky-300 bg-white text-sky-700 hover:bg-sky-50 transition-all shadow-sm" data-filter="pro">專業術語 Pro</button>
+        </div>
+
+        <!-- Vocab Grid -->
+        <div id="vocab-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <!-- Cards injected by JS -->
+        </div>
+    </section>
+
+    <!-- VIEW: ANALYSIS -->
+    <section id="view-analysis" class="hidden space-y-8 fade-in">
+        <div class="text-center mb-8">
+            <h2 class="text-3xl font-bold text-stone-800 brand-font">Subject Analysis</h2>
+            <p class="text-stone-500 max-w-2xl mx-auto">
+                聽懂《絕命毒師》的關鍵在於區分角色的社會階層與專業背景。不同的角色有完全不同的語言風格。
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Sidebar: Character Profiles -->
+            <div class="lg:col-span-1 space-y-4">
+                <div class="bg-white p-5 rounded-xl shadow-md border-l-4 border-sky-600 cursor-pointer hover:bg-sky-50 transition group" onclick="app.highlightChar(0)">
+                    <div class="flex items-center justify-between">
+                        <h4 class="font-bold text-stone-800 text-lg group-hover:text-sky-700">Walter White</h4>
+                        <span class="text-2xl">👨‍🏫</span>
+                    </div>
+                    <p class="text-sm text-stone-600 mt-2">邏輯清晰、用詞精準、語氣堅定。</p>
+                    <div class="mt-3 text-xs font-bold text-sky-600 bg-sky-100 inline-block px-2 py-1 rounded">Heisenberg Mode</div>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl shadow-md border-l-4 border-yellow-500 cursor-pointer hover:bg-yellow-50 transition group" onclick="app.highlightChar(1)">
+                    <div class="flex items-center justify-between">
+                        <h4 class="font-bold text-stone-800 text-lg group-hover:text-yellow-700">Jesse Pinkman</h4>
+                        <span class="text-2xl">🧢</span>
+                    </div>
+                    <p class="text-sm text-stone-600 mt-2">充滿街頭俚語 (Yo, Bitch)，文法隨意，情緒化。</p>
+                    <div class="mt-3 text-xs font-bold text-yellow-600 bg-yellow-100 inline-block px-2 py-1 rounded">Street Smart</div>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl shadow-md border-l-4 border-stone-800 cursor-pointer hover:bg-stone-100 transition group" onclick="app.highlightChar(2)">
+                    <div class="flex items-center justify-between">
+                        <h4 class="font-bold text-stone-800 text-lg group-hover:text-stone-600">Gus Fring</h4>
+                        <span class="text-2xl">👔</span>
+                    </div>
+                    <p class="text-sm text-stone-600 mt-2">極度禮貌、冷靜、正式（即使在威脅人時）。</p>
+                    <div class="mt-3 text-xs font-bold text-stone-600 bg-stone-200 inline-block px-2 py-1 rounded">Professional</div>
+                </div>
+            </div>
+
+            <!-- Main: Radar Chart -->
+            <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-lg flex flex-col items-center justify-center">
+                <h3 class="text-xl font-bold text-stone-800 mb-2">語言風格雷達圖 (Linguistic Profile)</h3>
+                <p class="text-stone-400 text-xs mb-6">點擊左側角色卡片可高亮特定數據</p>
+                <div class="chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Additional Context Card -->
+        <div class="bg-stone-200 p-6 rounded-xl border border-stone-300">
+            <h4 class="text-lg font-bold text-stone-800 mb-3">🎧 聽力訓練重點</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div class="flex items-start">
+                    <span class="text-green-600 mr-2 font-bold">✓</span>
+                    <p>注意發音：劇中有許多美國南方及墨裔口音，是訓練聽力的好材料。</p>
+                </div>
+                <div class="flex items-start">
+                    <span class="text-green-600 mr-2 font-bold">✓</span>
+                    <p>開啟英文字幕：尤其是涉及化學名詞或法律攻防時，英文字幕能幫助你連結聲音與拼字。</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- VIEW: QUOTES -->
+    <section id="view-quotes" class="hidden space-y-8 fade-in">
+        <div class="text-center mb-8">
+            <h2 class="text-3xl font-bold text-stone-800 brand-font">Wiretap Records (Quotes)</h2>
+            <p class="text-stone-500 max-w-2xl mx-auto">
+                學會這些句子，你就抓住了這部劇的靈魂。每一句都代表了角色的關鍵轉折。
+            </p>
+        </div>
+
+        <div id="quotes-container" class="space-y-4">
+            <!-- Quotes injected here -->
+        </div>
+    </section>
+
+</main>
+
+<!-- Footer -->
+<footer class="bg-stone-900 text-stone-500 py-8 mt-12 border-t border-stone-800">
+    <div class="max-w-7xl mx-auto px-4 text-center">
+        <p class="text-sm mb-2">Generated based on "Breaking Bad English Learning Notes"</p>
+        <p class="font-mono text-xs text-green-500">RESPECT THE CHEMISTRY</p>
+    </div>
+</footer>
+
+<!-- JavaScript Logic -->
+<script>
+    // Data Store derived strictly from source report
+    const appData = {
+        vocab: [
+            // Core
+            { en: "Meth / Crystal Meth", zh: "冰毒 (甲基安非他命)", context: "劇中常稱為 'Blue Sky' 或 'Product'。", type: "core", icon: "💎" },
+            { en: "Cook", zh: "烹飪 (在此指製毒)", context: "老白不說 make drugs，他總是說 'We need to cook.'", type: "core", icon: "⚗️" },
+            { en: "Dealer / Pusher", zh: "毒販 / 推銷者", context: "在街頭販賣毒品的人。", type: "core", icon: "🕶️" },
+            { en: "Cartel", zh: "販毒集團", context: "指墨西哥的大型犯罪組織（如 Salamanca 家族）。", type: "core", icon: "💀" },
+            { en: "Distribution", zh: "分銷 / 鋪貨", context: "老白負責製造，Gus Fring 負責 'Distribution network'。", type: "core", icon: "🚚" },
+            { en: "Territory / Turf", zh: "地盤", context: "毒販之間劃分的勢力範圍。", type: "core", icon: "🗺️" },
+            { en: "Batch", zh: "一批 (貨)", context: "'This batch is pure.' (這一批貨很純)。", type: "core", icon: "📦" },
+            { en: "Junkie / Tweaker", zh: "毒蟲 / 癮君子", context: "對吸毒者的貶稱。", type: "core", icon: "🧟" },
+            // Slang
+            { en: "Yo", zh: "喂、嘿、喔", context: "Jesse 的口頭禪，幾乎放在句首或句尾用來加強語氣。", type: "slang", icon: "👋" },
+            { en: "Bitch", zh: "婊子 / 傢伙", context: "Jesse 的招牌字。不一定是罵女生，有時是語助詞。", type: "slang", icon: "🐕" },
+            { en: "Tight", zh: "酷、緊湊、很棒", context: "形容事情很棒、很完美。'This chemistry is tight!'", type: "slang", icon: "👌" },
+            { en: "Bounce", zh: "離開、閃人", context: "'Let's bounce.' (我們閃人吧)。", type: "slang", icon: "🏃" },
+            { en: "Slinging", zh: "販賣 (非法物品)", context: "'Slinging meth' (販賣冰毒)。", type: "slang", icon: "💸" },
+            { en: "Stacks / Fat stacks", zh: "大把鈔票", context: "指厚厚一疊的現金。", type: "slang", icon: "💵" },
+            { en: "RV", zh: "露營車", context: "他們早期的「行動實驗室」就是一輛 RV。", type: "slang", icon: "🚐" },
+            // Pro (Chemistry & Law)
+            { en: "Purity", zh: "純度", context: "老白最在乎的事。'99.1% pure.'", type: "pro", icon: "🧪" },
+            { en: "Formula", zh: "配方", context: "毒品的製作公式。", type: "pro", icon: "📝" },
+            { en: "Reaction", zh: "化學反應", context: "'Respect the chemistry.'", type: "pro", icon: "🔥" },
+            { en: "Contamination", zh: "污染", context: "任何雜質（甚至是蒼蠅）都會毀了一鍋毒品。", type: "pro", icon: "🪰" },
+            { en: "Lab", zh: "實驗室", context: "製毒的地方。", type: "pro", icon: "🔬" },
+            { en: "DEA", zh: "美國緝毒局", context: "Hank 工作的單位。", type: "pro", icon: "🛡️" },
+            { en: "Bust", zh: "突襲逮捕", context: "'It was a big bust.' (這是一次大搜捕)。", type: "pro", icon: "🚔" },
+            { en: "Warrant", zh: "搜查令", context: "警察進屋前需要的文件。", type: "pro", icon: "📄" },
+            { en: "Snitch / Rat", zh: "告密者 / 抓耙子", context: "向警方通風報信的人。", type: "pro", icon: "🐀" },
+            { en: "Money Laundering", zh: "洗錢", context: "將非法所得變為合法資金（例如透過洗車場）。", type: "pro", icon: "🛁" },
+            { en: "Lawyer up", zh: "請律師", context: "'Better lawyer up.' (你最好找個律師)。", type: "pro", icon: "⚖️" }
+        ],
+        quotes: [
+            { en: "I am the one who knocks.", zh: "我才是去敲門（索命）的那個人。", context: "當妻子 Skyler 擔心有人會來家裡殺老白時，老白霸氣地告訴她，他不是受害者，他才是危險本身。形容自己掌握主導權。", tag: "Dominance" },
+            { en: "Say my name.", zh: "說出我的名字。", context: "老白在沙漠中與毒梟談判，要對方承認他在道上的地位（Heisenberg）。展現極度自信與權威。", tag: "Authority" },
+            { en: "Tread lightly.", zh: "謹言慎行 / 小心腳下。", context: "當 Hank 發現真相與老白對質時，老白給他的警告。警告對方處境危險，不要輕舉妄動。", tag: "Warning" },
+            { en: "No half measures.", zh: "做事不能只做一半 / 絕不手軟。", context: "Mike 給老白的建議，意指在犯罪世界裡，仁慈或猶豫會害死自己。形容做事要果斷、徹底。", tag: "Advice" },
+            { en: "Better Call Saul!", zh: "最好打給索爾！", context: "律師 Saul Goodman 的廣告詞。遇到麻煩需要解決時的玩笑話。", tag: "Catchphrase" }
+        ]
+    };
+
+    // Application Logic
+    const app = {
+        currentView: 'overview',
+        charts: {},
+
+        init: function() {
+            this.renderCharts();
+            this.renderVocab('all');
+            this.renderQuotes();
+        },
+
+        navigate: function(viewId) {
+            // Hide all sections
+            document.querySelectorAll('section').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('section').forEach(el => el.classList.remove('fade-in'));
+            
+            // Show target section
+            const target = document.getElementById(`view-${viewId}`);
+            target.classList.remove('hidden');
+            void target.offsetWidth; // Trigger reflow for animation
+            target.classList.add('fade-in');
+            
+            // Update Nav State
+            document.querySelectorAll('.nav-btn').forEach(el => {
+                el.classList.remove('active', 'bg-sky-500', 'text-white');
+                // Reset hover states conceptually
+                el.classList.add('hover:bg-stone-700');
+            });
+            const navBtn = document.getElementById(`nav-${viewId}`);
+            if (navBtn) {
+                navBtn.classList.add('active');
+            }
+
+            // Close mobile menu if open
+            document.getElementById('mobile-menu').classList.add('hidden');
+
+            this.currentView = viewId;
+        },
+
+        filterVocab: function(filterType) {
+            // Update Buttons Visuals
+            document.querySelectorAll('.vocab-filter-btn').forEach(btn => {
+                const type = btn.dataset.filter;
+                if (type === filterType) {
+                    // Active styles
+                    btn.classList.add('ring-2', 'ring-offset-2', 'ring-stone-400', 'bg-stone-100');
+                    if(type === 'slang') btn.classList.add('bg-yellow-100');
+                    if(type === 'pro') btn.classList.add('bg-sky-100');
+                } else {
+                    btn.classList.remove('ring-2', 'ring-offset-2', 'ring-stone-400', 'bg-stone-100', 'bg-yellow-100', 'bg-sky-100');
+                }
+            });
+            this.renderVocab(filterType);
+        },
+
+        renderVocab: function(filter) {
+            const container = document.getElementById('vocab-grid');
+            container.innerHTML = '';
+
+            let filteredData = appData.vocab;
+            if (filter !== 'all') {
+                if (filter === 'pro') {
+                    // Combine Chemistry and Law under "Pro"
+                    filteredData = appData.vocab.filter(item => item.type === 'pro');
+                } else {
+                    filteredData = appData.vocab.filter(item => item.type === filter);
+                }
+            }
+
+            filteredData.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'vocab-card h-64 w-full';
+                card.onclick = function() { this.classList.toggle('flipped'); };
+
+                // Dynamic border color based on type
+                let borderColor = 'border-stone-200';
+                let typeLabel = 'Core';
+                let typeColor = 'text-stone-400';
+                
+                if (item.type === 'slang') { borderColor = 'border-yellow-400'; typeLabel = 'Street Slang'; typeColor = 'text-yellow-500'; }
+                if (item.type === 'pro') { borderColor = 'border-sky-400'; typeLabel = 'Professional'; typeColor = 'text-sky-500'; }
+
+                card.innerHTML = `
+                    <div class="vocab-inner">
+                        <div class="vocab-front ${borderColor} border-b-4">
+                            <div class="text-4xl mb-3">${item.icon}</div>
+                            <h3 class="text-2xl font-bold text-stone-800 mb-1">${item.en}</h3>
+                            <p class="text-xs font-bold uppercase tracking-widest ${typeColor}">${typeLabel}</p>
+                            <p class="mt-auto text-stone-400 text-xs animate-pulse">Click to Reveal</p>
+                        </div>
+                        <div class="vocab-back">
+                            <h3 class="text-xl font-bold text-green-400 mb-2 brand-font">${item.en}</h3>
+                            <p class="text-lg font-bold mb-4">${item.zh}</p>
+                            <hr class="border-stone-700 w-full mb-3">
+                            <p class="text-sm text-stone-300 italic leading-relaxed">
+                                "${item.context}"
+                            </p>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        },
+
+        renderQuotes: function() {
+            const container = document.getElementById('quotes-container');
+            appData.quotes.forEach((quote, index) => {
+                const el = document.createElement('div');
+                el.className = 'bg-white p-6 rounded-xl shadow-md border-l-8 border-stone-800 hover:shadow-xl transition-all group';
+                
+                el.innerHTML = `
+                    <div class="flex flex-col md:flex-row md:items-start gap-4">
+                        <div class="md:w-3/4">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="bg-stone-200 text-stone-700 text-xs px-2 py-1 rounded font-bold uppercase tracking-wider">${quote.tag}</span>
+                            </div>
+                            <p class="text-2xl md:text-3xl font-bold text-stone-800 mb-2 font-serif group-hover:text-green-700 transition-colors">"${quote.en}"</p>
+                            <p class="text-lg text-stone-600 font-medium mb-3">${quote.zh}</p>
+                        </div>
+                        <div class="md:w-1/4 bg-stone-50 p-4 rounded-lg border border-stone-100">
+                            <p class="text-xs text-stone-400 font-bold uppercase mb-1">Context</p>
+                            <p class="text-sm text-stone-600 leading-snug">${quote.context}</p>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(el);
+            });
+        },
+
+        renderCharts: function() {
+            // 1. Content Composition Donut Chart
+            const ctx1 = document.getElementById('contentChart').getContext('2d');
+            
+            // Calculate counts
+            const coreCount = appData.vocab.filter(i => i.type === 'core').length;
+            const slangCount = appData.vocab.filter(i => i.type === 'slang').length;
+            const proCount = appData.vocab.filter(i => i.type === 'pro').length;
+
+            new Chart(ctx1, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Core Plot Words', 'Street Slang', 'Pro Terms (Chem/Law)'],
+                    datasets: [{
+                        data: [coreCount, slangCount, proCount],
+                        backgroundColor: ['#78716c', '#eab308', '#0ea5e9'], // Stone, Yellow, Sky
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } },
+                        tooltip: {
+                            backgroundColor: '#1c1917',
+                            titleFont: { family: 'Oswald', size: 14 },
+                            bodyFont: { family: 'Roboto', size: 14 },
+                            padding: 12
+                        }
+                    }
+                }
+            });
+
+            // 2. Character Radar Chart
+            const ctx2 = document.getElementById('radarChart').getContext('2d');
+            this.charts.radar = new Chart(ctx2, {
+                type: 'radar',
+                data: {
+                    labels: ['Formal Grammar', 'Street Slang', 'Technical Jargon', 'Aggression/Intimidation'],
+                    datasets: [
+                        {
+                            label: 'Walter White',
+                            data: [8, 1, 10, 8],
+                            fill: true,
+                            backgroundColor: 'rgba(14, 165, 233, 0.2)', // Sky
+                            borderColor: '#0ea5e9',
+                            pointBackgroundColor: '#0ea5e9',
+                            pointRadius: 4
+                        },
+                        {
+                            label: 'Jesse Pinkman',
+                            data: [2, 10, 4, 3],
+                            fill: true,
+                            backgroundColor: 'rgba(234, 179, 8, 0.2)', // Yellow
+                            borderColor: '#eab308',
+                            pointBackgroundColor: '#eab308',
+                            pointRadius: 4
+                        },
+                        {
+                            label: 'Gus Fring',
+                            data: [10, 0, 8, 9], // Polite but scary
+                            fill: true,
+                            backgroundColor: 'rgba(28, 25, 23, 0.2)', // Stone
+                            borderColor: '#1c1917',
+                            pointBackgroundColor: '#1c1917',
+                            pointRadius: 4,
+                            hidden: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: '#e5e7eb' },
+                            grid: { color: '#e5e7eb' },
+                            pointLabels: {
+                                font: { size: 12, family: 'Oswald' },
+                                color: '#57534e'
+                            },
+                            ticks: { display: false, max: 10 }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'top', labels: { usePointStyle: true } },
+                        tooltip: {
+                            backgroundColor: '#1c1917',
+                            titleFont: { family: 'Oswald' },
+                            bodyFont: { family: 'Roboto' }
+                        }
+                    }
+                }
+            });
+        },
+
+        highlightChar: function(index) {
+            const chart = this.charts.radar;
+            chart.data.datasets.forEach((ds, i) => {
+                if (i === index) {
+                    ds.hidden = false;
+                    ds.backgroundColor = ds.backgroundColor.replace('0.2', '0.6'); 
+                    ds.borderWidth = 3;
+                } else {
+                    ds.hidden = false; // Keep others visible for comparison
+                    ds.backgroundColor = ds.backgroundColor.replace('0.6', '0.1').replace('0.2', '0.1'); // Fade out
+                    ds.borderWidth = 1;
+                }
+            });
+            chart.update();
+        }
+    };
+
+    // Initialize App
+    window.addEventListener('load', () => app.init());
+
+</script>
+
+```
+
+</body>
+</html>
